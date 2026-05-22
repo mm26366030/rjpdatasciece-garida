@@ -134,8 +134,8 @@ with st.sidebar:
     st.image(buf.getvalue(), use_container_width=True)
 
 # === HEADER ===
-st.markdown("# Team Data Chain")
-st.caption("Protein Optimization Dashboard v4.2")
+st.markdown("TTCの健康な学生へ")
+st.caption("周辺スーパーから最適な食事を選ぼう")
 st.divider()
 
 # === BUDGET OPTIMIZER LOGIC ===
