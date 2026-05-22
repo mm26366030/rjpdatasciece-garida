@@ -214,8 +214,8 @@ with tab4:
             paper_bgcolor="rgba(0,0,0,0)", 
             font=dict(color="#1a4d2e", size=16, family="Noto Sans JP"),
             title_font=dict(size=22, family="Noto Serif JP"),
-            xaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e")),
-            yaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e"))
+            xaxis=dict(gridcolor="#2d6a4f", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e")),
+            yaxis=dict(gridcolor="#2d6a4f", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e"))
         )
         st.plotly_chart(fig, use_container_width=True)
         
