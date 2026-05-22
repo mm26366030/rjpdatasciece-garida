@@ -7,7 +7,7 @@ from io import BytesIO
 
 # === PAGE CONFIG ===
 st.set_page_config(
-    page_title="TTC Team Data Chain | Protein Optimizer",
+    page_title="TTC",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
