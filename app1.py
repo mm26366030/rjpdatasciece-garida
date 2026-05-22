@@ -122,7 +122,6 @@ input, select, textarea {
 with st.sidebar:
     st.markdown("## ⚙️ 設定 / Settings")
     weight = st.number_input("体重 (kg)", min_value=30, max_value=150, value=65)
-    activity = st.selectbox("活動レベル", ["低 (デスクワーク)", "中 (週3回の運動)", "高 (アスリート)"], index=1)
     st.divider()
     budget = st.slider("予算 (¥)", 100, 2000, 500, step=50)
     category = st.selectbox("カテゴリ", ["すべて"] + sorted(df["カテゴリ"].dropna().unique().tolist()))
