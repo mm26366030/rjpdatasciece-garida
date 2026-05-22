@@ -61,7 +61,6 @@ html, body, [class*="css"], .stMarkdown, p, span, label, li, h1, h2, h3, h4, h5,
     background: #f7f5f0; 
 }
 
-/* Sidebar Toggle Fix */
 button[kind="headerNoPadding"] svg { display: none; }
 button[kind="headerNoPadding"]::after { content: "☰"; font-size: 24px; color: #1a4d2e; font-weight: bold; }
 
@@ -93,7 +92,6 @@ input, select, textarea { color: #1a4d2e !important; }
 .stDataFrame div { color: #1a4d2e !important; }
 .stAlert p { color: #1a4d2e !important; }
 
-/* Analysis chart axis text color fix */
 .js-plotly-plot .plotly .xtick text, .js-plotly-plot .plotly .ytick text {
     fill: #1a4d2e !important;
     font-weight: 700 !important;
@@ -109,8 +107,8 @@ with st.sidebar:
     
     st.divider()
     st.markdown("### 📱 Share this App")
-    # Generate QR Code for the app URL (using current URL if possible, or placeholder)
-    app_url = "https://team-data-chain.streamlit.app" # Replace with your actual URL
+    # Updated to the specific URL provided by the user
+    app_url = "https://rjpdatasciece-garida-xp7g4qgsnimqdmeyqrepcu.streamlit.app/"
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(app_url)
     qr.make(fit=True)
@@ -122,28 +120,22 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# データサイエンス＋AI科　**Team Data Chain** の作品")
-st.caption("TTC Protein Optimization Dashboard v4.0 | 予算特化型・モバイル対応モデル")
+st.caption("TTC Protein Optimization Dashboard v4.1 | 予算特化型・モバイル対応モデル")
 st.divider()
 
 # === BUDGET OPTIMIZER LOGIC ===
 df_f = df.copy()
 if category != "すべて":
     df_f = df_f[df_f["カテゴリ"] == category]
-
-# Filter for items within budget
 df_f = df_f[df_f["値段"] <= budget]
 
-# Find best combinations for the budget
 def find_best_plan(items_df, target_budget):
     pool = items_df.to_dict("records")
     best_combo = []
     max_prot = 0
-    
-    # Simple heuristic: try combinations of 2 to 4 items
     for n in range(2, 5):
         for combo in combinations(pool, n):
             total_price = sum(item["値段"] for item in combo)
-            # Price must be within budget and not more than 100 yen under
             if (target_budget - 100) <= total_price <= target_budget:
                 total_prot = sum(item["タンパク"] for item in combo)
                 if total_prot > max_prot:
@@ -190,9 +182,10 @@ with tab3:
     st.info("😋 美味しいと思う食品をここに追加してください！皆さんの協力に感謝します！ ❤️")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("食品名", placeholder="例: プロテインバー")
-        f_cat = st.selectbox("カテゴリ", [ "主食", "野菜", "乳製品", "その他"])
+        f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
         f_price = st.number_input("価格 (¥)", min_value=1, value=100)
         f_prot = st.number_input("タンパク質 (g)", min_value=0.0, value=10.0, step=0.1)
+        f_cal = st.number_input("カロリー (kcal)", min_value=0, value=100)
         submitted = st.form_submit_button("リストに追加する")
         if submitted:
             if f_name:
@@ -214,8 +207,8 @@ with tab4:
             paper_bgcolor="rgba(0,0,0,0)", 
             font=dict(color="#1a4d2e", size=16, family="Noto Sans JP"),
             title_font=dict(size=22, family="Noto Serif JP"),
-            xaxis=dict(gridcolor="#2d6a4f", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e")),
-            yaxis=dict(gridcolor="#2d6a4f", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e"))
+            xaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e")),
+            yaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", tickfont=dict(size=14, color="#1a4d2e"))
         )
         st.plotly_chart(fig, use_container_width=True)
         
@@ -224,12 +217,12 @@ with tab4:
         top10_pc = df_f.nlargest(10, "p/c_score")
         fig2 = px.bar(top10_pc, x="p/c_score", y="商品名", orientation='h', 
                       title="コスパスコア TOP 10",
-                      labels={"p/c_score": "スコア (g/100円)", "商品名": "食品名"},
+                      labels={"p/c_score": "スコа (g/100円)", "商品名": "食品名"},
                       color="タンパク", color_continuous_scale="Greens")
         
         fig2.update_layout(
-            plot_bgcolor="rgba(0, 0, 0, 0.5)  ", 
-            paper_bgcolor="rgba(0, 0, 0, 0.5) ", 
+            plot_bgcolor="rgba(0,0,0,0)", 
+            paper_bgcolor="rgba(0,0,0,0)", 
             font=dict(color="#1a4d2e", size=16),
             yaxis={'categoryorder':'total ascending', 'tickfont': dict(size=14, color="#1a4d2e")},
             xaxis={'tickfont': dict(size=14, color="#1a4d2e")}
@@ -239,7 +232,3 @@ with tab4:
 # === FOOTER ===
 st.divider()
 st.markdown("<div style='text-align:center; font-size:0.9rem; font-weight:700;'>© 2024 Team Data Chain | Tokyo Technical College</div>", unsafe_allow_html=True)
-
-# === FOOTER ===
-st.divider()
-st.markdown("<div style='text-align:center; font-size:0.8rem;'>© 2024 Team Data Chain | Tokyo Technical College</div>", unsafe_allow_html=True)
