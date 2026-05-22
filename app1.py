@@ -120,7 +120,7 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# データサイエンス＋AI科　**Team Data Chain** の作品")
-st.caption("TTC Protein Optimization Dashboard v4.1 | 予算特化型・モバイル対応モデル")
+st.caption("TTCの学生なら予算して今日の良い食事を任せろ！")
 st.divider()
 
 # === BUDGET OPTIMIZER LOGIC ===
