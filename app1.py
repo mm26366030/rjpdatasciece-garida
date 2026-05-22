@@ -58,6 +58,18 @@ html, body, [class*="css"], .stMarkdown, p, span, label, li, h1, h2, h3, h4, h5,
     background: #f7f5f0; 
 }
 
+/* Sidebar Toggle Icon Fix */
+/* Hide the double arrow and show a hamburger-like icon or just cleaner look */
+button[kind="headerNoPadding"] svg {
+    display: none;
+}
+button[kind="headerNoPadding"]::after {
+    content: "☰";
+    font-size: 24px;
+    color: #1a4d2e;
+    font-weight: bold;
+}
+
 [data-testid="stMetricValue"] {
     color: #1a4d2e !important;
     font-weight: 800 !important;
@@ -100,7 +112,6 @@ input, select, textarea {
     color: #1a4d2e !important;
 }
 
-/* Success message color fix */
 .stAlert p {
     color: #1a4d2e !important;
 }
@@ -118,7 +129,7 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# データサイエンス＋AI科　**Team Data Chain** の作品")
-st.caption("TTC Protein Optimization Dashboard v3.2 | ユーザー参加型・分析強化モデル")
+st.caption("TTC Protein Optimization Dashboard v3.3 | UI/UX Refined")
 st.divider()
 
 # === CALCULATOR & METRICS ===
@@ -162,7 +173,7 @@ with tab1:
 
 with tab2:
     st.markdown("### ➕ 新しい食品をリストに追加")
-    st.info("😋 Амттай гэж бодож байгаа бүтээгдэхүүнээ энд нэмээрэй, бид маш их баярлах болно! ❤️")
+    st.info("😋 美味しいと思う食品をここに追加してください！皆さんの協力に感謝します！ ❤️")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("食品名", placeholder="例: プロテインバー")
         f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
@@ -191,7 +202,6 @@ with tab3:
 with tab4:
     st.markdown("### 📊 視覚的分析 (Visual Analysis)")
     if not df_f.empty:
-        # Improved scatter chart with clearer labels and dark green theme
         fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", 
                          hover_name="商品名", 
                          title="価格 vs タンパク質含有量 (円 vs グラム)",
@@ -209,7 +219,6 @@ with tab4:
         
         st.markdown("---")
         
-        # Additional bar chart for top cost performance
         top10_pc = df_f.nlargest(10, "p/c_score")
         fig2 = px.bar(top10_pc, x="p/c_score", y="商品名", orientation='h', 
                       title="コスパスコア TOP 10 (100円あたりのタンパク質g)",
@@ -224,6 +233,12 @@ with tab4:
             yaxis={'categoryorder':'total ascending'}
         )
         st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("分析するデータがありません。フィルターを調整してください。")
+
+# === FOOTER ===
+st.divider()
+st.markdown("<div style='text-align:center; font-size:0.8rem;'>© 2024 Team Data Chain | Tokyo Technical College</div>", unsafe_allow_html=True)
     else:
         st.warning("分析するデータがありません。フィルターを調整してください。")
 
