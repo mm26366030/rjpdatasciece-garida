@@ -1,304 +1,248 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import plotly.express as px
 
 # === PAGE CONFIG ===
 st.set_page_config(
-    page_title="Protein Tracker | Team Data Chain",
+    page_title="TTC Team Data Chain | Protein Optimization",
     page_icon="🧬",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # === LOAD DATA ===
-try:
-    df = pd.read_csv("smith_clean.csv")
-    df["p/c_score"] = pd.to_numeric(df["p/c_score"], errors="coerce")
-    df["タンパク"]   = pd.to_numeric(df["タンパク"],   errors="coerce")
-    df["値段"]       = pd.to_numeric(df["値段"],       errors="coerce")
-except FileNotFoundError:
-    # Create dummy data if file not found for demonstration
-    data = {
-        "商品名": ["サラダチキン", "プロテインバー", "納豆", "卵", "豆腐"],
-        "カテゴリ": ["惣菜", "お菓子", "日配", "日配", "日配"],
-        "タンパク": [25.0, 15.0, 8.0, 6.0, 5.0],
-        "値段": [250, 160, 100, 200, 80],
-        "p/c_score": [10.0, 9.3, 8.0, 3.0, 6.2]
-    }
-    df = pd.DataFrame(data)
+@st.cache_data
+def load_data():
+    try:
+        # Try to load existing data
+        df = pd.read_csv("smith_clean.csv")
+        df["p/c_score"] = pd.to_numeric(df["p/c_score"], errors="coerce")
+        df["タンパク"]   = pd.to_numeric(df["タンパク"],   errors="coerce")
+        df["値段"]       = pd.to_numeric(df["値段"],       errors="coerce")
+        # Ensure column names match expected logic
+        if "商品名" not in df.columns and "name" in df.columns:
+            df = df.rename(columns={"name": "商品名", "price": "値段", "prot": "タンパク", "cat": "カテゴリ"})
+    except FileNotFoundError:
+        # Use dummy data from reference app if file not found
+        rows = [
+            ("ごはん(茶碗1杯)","150g",30,168,2.5,0.3,37.1,"サミット","主食"),
+            ("食パン 1枚","60g",40,158,5.6,2.5,28.0,"サミット","主食"),
+            ("鶏むね肉(皮なし)","100g",80,105,23.3,1.2,0.0,"サミット","タンパク質"),
+            ("鶏卵 1個","60g",25,76,6.2,5.2,0.2,"サミット","タンパク質"),
+            ("木綿豆腐 半丁","150g",50,72,6.6,4.2,1.6,"サミット","タンパク質"),
+            ("納豆 1パック","50g",40,100,8.3,5.0,5.4,"サミット","タンパク質"),
+            ("サバ缶(水煮)","150g",198,190,20.9,10.7,0.2,"サミット","タンパク質"),
+            ("サラダチキン","115g",218,114,24.5,1.5,0.5,"FamilyMart","タンパク質"),
+            ("ゆで卵 1個","60g",78,76,6.5,5.1,0.3,"FamilyMart","タンパク質"),
+            ("ブロッコリー","100g",60,33,3.5,0.4,4.3,"サミット","野菜"),
+        ]
+        df = pd.DataFrame(rows, columns=["商品名","unit","値段","cal","タンパク","fat","carb","store","カテゴリ"])
+        df["p/c_score"] = (df["タンパク"] / df["値段"] * 100).round(2)
+    return df
 
-# === GLOBAL CSS ===
+df = load_data()
+
+# === GLOBAL CSS (Reference Style) ===
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
 
-:root {
-    --primary: #00f2fe;
-    --secondary: #4facfe;
-    --bg-dark: #0f172a;
-    --card-bg: rgba(30, 41, 59, 0.7);
-    --text-main: #f1f5f9;
-    --text-dim: #94a3b8;
-    --accent: #10b981;
+html, body, [class*="css"] { 
+    font-family: 'Noto Sans JP', sans-serif; 
 }
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-dark);
-    color: var(--text-main);
+.stApp { 
+    background: #f7f5f0; 
 }
 
-/* Hide streamlit branding */
-#MainMenu, footer, header { visibility: hidden; }
-
-.block-container {
-    padding: 2rem 1rem !important;
-    max-width: 550px !important;
+h1, h2, h3 { 
+    font-family: 'Noto Serif JP', serif !important; 
+    color: #1a4d2e !important;
 }
 
-/* === HEADER === */
-.app-header {
-    text-align: center;
-    margin-bottom: 2.5rem;
-    padding: 2rem;
-    background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1));
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-.app-sub {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--primary);
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-}
-.app-title {
-    font-size: 2rem;
-    font-weight: 800;
-    background: linear-gradient(to right, #00f2fe, #4facfe);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.03em;
-    margin: 0;
+/* Custom Card Style */
+.custom-card {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    border-left: 5px solid #1a4d2e;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
 }
 
-/* === CALCULATOR BOX === */
-.calc-box {
-    background: var(--card-bg);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
-.calc-result {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--accent);
-    text-align: center;
-    margin: 1rem 0;
-}
-.calc-label {
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-}
-
-/* === STAT CARDS === */
-.stat-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 2rem;
-}
-.stat-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 15px 10px;
-    text-align: center;
+.pairing-card {
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 10px;
     transition: transform 0.2s;
 }
-.stat-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--primary);
+.pairing-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    border-color: #1a4d2e;
 }
-.stat-val {
-    font-size: 1.4rem;
+
+.highlight-text {
+    color: #1a4d2e;
     font-weight: 700;
-    color: var(--text-main);
-    font-family: 'JetBrains Mono', monospace;
-}
-.stat-lbl {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    margin-top: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
-/* === RANK ITEMS === */
-.rank-item {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    margin-bottom: 10px;
-    transition: all 0.2s;
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: #ffffff;
+    border-right: 1px solid #e0e0e0;
 }
-.rank-item:hover {
-    background: rgba(79, 172, 254, 0.08);
-    border-color: rgba(79, 172, 254, 0.3);
-    transform: scale(1.01);
-}
-.rank-num {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: var(--text-dim);
-    width: 30px;
-}
-.rank-name {
-    flex: 1;
-    font-size: 1rem;
-    font-weight: 600;
-}
-.rank-meta {
-    text-align: right;
-}
-.rank-protein {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--primary);
-    font-family: 'JetBrains Mono', monospace;
-}
-
-/* Section Title */
-.section-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin: 2rem 0 1rem;
-    padding-left: 10px;
-    border-left: 3px solid var(--primary);
-}
-
-/* Custom Slider/Selectbox */
-div[data-testid="stSlider"] label, div[data-testid="stSelectbox"] label {
-    color: var(--text-dim) !important;
-    font-weight: 600 !important;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
-# === HEADER ===
-st.markdown("""
-<div class="app-header">
-    <p class="app-sub">データサイエンス＋AI科</p>
-    <h1 class="app-title">TEAM DATA CHAIN</h1>
-    <p style="margin-top:10px; color:#94a3b8; font-size:0.9rem;">Protein Optimization Dashboard</p>
-</div>
-""", unsafe_allow_html=True)
+# === SIDEBAR (Settings) ===
+with st.sidebar:
+    st.image("https://img.icons8.com/fluency/96/protein.png", width=80)
+    st.markdown("## ⚙️ 設定 / Settings")
+    
+    st.markdown("### 👤 User Profile")
+    weight = st.number_input("体重 (kg)", min_value=30, max_value=150, value=65)
+    activity = st.selectbox("活動レベル", 
+                            ["低 (デスクワーク)", "中 (週3回の運動)", "高 (アスリート)"],
+                            index=1)
+    
+    st.divider()
+    
+    st.markdown("### 🔍 Filters")
+    budget = st.slider("予算 (¥)", 100, 2000, 500, step=50)
+    
+    cat_options = ["すべて"] + sorted(df["カテゴリ"].dropna().unique().tolist())
+    category = st.selectbox("カテゴリ", cat_options)
 
-# === PROTEIN CALCULATOR ===
-st.markdown("<p class='section-title'>Daily Protein Calculator</p>", unsafe_allow_html=True)
-with st.container():
-    col1, col2 = st.columns(2)
-    with col1:
-        weight = st.number_input("Weight (kg)", min_value=30, max_value=150, value=65)
-    with col2:
-        activity = st.selectbox("Activity Level", 
-                                ["Low (Sedentary)", "Moderate (Exercise 3x/week)", "High (Athlete)"],
-                                index=1)
-    
-    # Calculate multiplier
-    multiplier = 1.0
-    if "Moderate" in activity: multiplier = 1.5
-    elif "High" in activity: multiplier = 2.0
-    
-    target_protein = weight * multiplier
-    
+# === HEADER ===
+st.markdown("# データサイエンス＋AI科　**Team Data Chain** の作品")
+st.caption("専門学校東京テクニカルカレッジ (TTC) · プロテイン最適化ダッシュボード v2.0")
+st.divider()
+
+# === CALCULATOR SECTION ===
+multiplier = 1.0
+if "中" in activity: multiplier = 1.5
+elif "高" in activity: multiplier = 2.0
+target_protein = weight * multiplier
+
+c1, c2 = st.columns([1, 2])
+
+with c1:
     st.markdown(f"""
-    <div class="calc-box">
-        <p class="calc-label">Your Daily Target</p>
-        <p class="calc-result">{target_protein:.1f}g</p>
-        <p style="text-align:center; font-size:0.8rem; color:#64748b;">Based on {multiplier}g per kg of body weight</p>
+    <div class="custom-card">
+        <p style="margin:0; font-size:0.9rem; color:#666;">あなたの1日の目標タンパク質</p>
+        <h2 style="margin:10px 0; color:#1a4d2e;">{target_protein:.1f}g</h2>
+        <p style="margin:0; font-size:0.8rem; color:#999;">体重 {weight}kg × 係数 {multiplier}</p>
     </div>
     """, unsafe_allow_html=True)
 
-# === FILTER SECTION ===
-st.markdown("<p class='section-title'>Optimization Filters</p>", unsafe_allow_html=True)
-c1, c2 = st.columns([2, 1])
-with c1:
-    budget = st.slider("Budget Limit (¥)", 100, 1000, 400, step=10)
 with c2:
-    cat_options = ["All"] + sorted(df["カテゴリ"].dropna().unique().tolist())
-    category = st.selectbox("Category", cat_options)
+    # Quick metrics from filtered data
+    df_f = df[df["値段"] <= budget].copy()
+    if category != "すべて":
+        df_f = df_f[df_f["カテゴリ"] == category]
+    
+    m1, m2, m3 = st.columns(3)
+    m1.metric("該当品目", f"{len(df_f)}品")
+    m2.metric("平均タンパク", f"{df_f['タンパク'].mean():.1f}g" if not df_f.empty else "0g")
+    m3.metric("最高コスパ", f"{df_f['p/c_score'].max():.1f}pt" if not df_f.empty else "0pt")
 
-# Apply filter
-df_f = df[df["値段"] <= budget].copy()
-if category != "All":
-    df_f = df_f[df_f["カテゴリ"] == category]
+# === TABS ===
+tab1, tab2, tab3 = st.tabs(["🍱 食品・ランキング", "🤝 おすすめの組み合わせ", "📊 データ分析"])
 
-df_f = df_f.sort_values("タンパク", ascending=False).reset_index(drop=True)
-
-# === STATS ===
-count     = len(df_f)
-avg_prot  = f"{df_f['タンパク'].mean():.1f}g"  if not df_f.empty else "0g"
-min_price = f"¥{int(df_f['値段'].min())}"       if not df_f.empty else "¥0"
-
-st.markdown(f"""
-<div class="stat-grid">
-    <div class="stat-card">
-        <span class="stat-val">{count}</span>
-        <span class="stat-lbl">Items</span>
-    </div>
-    <div class="stat-card">
-        <span class="stat-val">{avg_prot}</span>
-        <span class="stat-lbl">Avg Protein</span>
-    </div>
-    <div class="stat-card">
-        <span class="stat-val">{min_price}</span>
-        <span class="stat-lbl">Min Price</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# === RANKING ===
-st.markdown("<p class='section-title'>Top Protein Sources</p>", unsafe_allow_html=True)
-
-if df_f.empty:
-    st.warning("No items match your criteria.")
-else:
-    top5 = df_f.head(5)
-    for i, row in top5.iterrows():
-        st.markdown(f"""
-        <div class="rank-item">
-            <span class="rank-num">#0{i+1}</span>
-            <div class="rank-name">
-                {row['商品名']}
-                <div style="font-size:0.7rem; color:#64748b; font-weight:400;">{row['カテゴリ']} | ¥{int(row['値段'])}</div>
+with tab1:
+    col_a, col_b = st.columns([2, 1])
+    
+    with col_a:
+        st.markdown("### 📋 食品リスト")
+        st.dataframe(df_f.sort_values("タンパク", ascending=False), use_container_width=True, hide_index=True)
+        
+    with col_b:
+        st.markdown("### 🏆 タンパク質 TOP 5")
+        top5 = df_f.sort_values("タンパク", ascending=False).head(5)
+        for i, row in top5.iterrows():
+            st.markdown(f"""
+            <div style="padding:10px; border-bottom:1px solid #eee;">
+                <span style="font-weight:700; color:#1a4d2e;">#{i+1} {row['商品名']}</span><br>
+                <span style="font-size:0.85rem; color:#666;">{row['タンパク']}g / ¥{int(row['値段'])}</span>
             </div>
-            <div class="rank-meta">
-                <span class="rank-protein">{row['タンパク']}g</span>
+            """, unsafe_allow_html=True)
+
+with tab2:
+    st.markdown("### 🤝 一緒に食べるともっと美味しい！ (おすすめの組み合わせ)")
+    st.write("栄養バランスと味の相性を考えた、最強のコンビネーションをご提案します。")
+    
+    pairings = [
+        {
+            "title": "定番！サラダチキンセット",
+            "items": ["サラダチキン", "ブロッコリー", "ごはん"],
+            "desc": "高タンパクの王道。ブロッコリーのビタミンCがタンパク質の吸収を助けます。",
+            "protein": "30.5g",
+            "price": "¥328"
+        },
+        {
+            "title": "朝のエネルギーチャージ",
+            "items": ["納豆", "鶏卵", "ごはん"],
+            "desc": "日本の伝統的な朝食。アミノ酸スコア100の完璧な組み合わせです。",
+            "protein": "17.0g",
+            "price": "¥95"
+        },
+        {
+            "title": "手軽に最強バルクアップ",
+            "items": ["サバ缶(水煮)", "木綿豆腐"],
+            "desc": "良質な脂質(EPA/DHA)と植物性タンパク質を同時に摂取。コスパも最強。",
+            "protein": "27.5g",
+            "price": "¥248"
+        }
+    ]
+    
+    p_cols = st.columns(3)
+    for i, p in enumerate(pairings):
+        with p_cols[i % 3]:
+            st.markdown(f"""
+            <div class="pairing-card">
+                <h4 style="color:#1a4d2e; margin-top:0;">{p['title']}</h4>
+                <p style="font-size:0.85rem; color:#444;">{' + '.join(p['items'])}</p>
+                <hr style="margin:10px 0; border:0; border-top:1px solid #eee;">
+                <p style="font-size:0.8rem; font-style:italic; color:#666;">{p['desc']}</p>
+                <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                    <span class="highlight-text">{p['protein']}</span>
+                    <span style="font-weight:700;">{p['price']}</span>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
+with tab3:
+    st.markdown("### 📊 視覚的分析")
+    c_left, c_right = st.columns(2)
+    
+    with c_left:
+        # Scatter chart: Price vs Protein
+        fig = px.scatter(df_f, x="値段", y="タンパク", 
+                         size="p/c_score", color="カテゴリ",
+                         hover_name="商品名",
+                         title="価格 vs タンパク質含有量 (サイズの大きさはコスパ)")
+        fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with c_right:
+        # Bar chart: Top 10 Cost Performance
+        top10_pc = df_f.nlargest(10, "p/c_score")
+        fig2 = px.bar(top10_pc, x="p/c_score", y="商品名", 
+                      orientation='h', color="タンパク",
+                      title="コスパスコア TOP 10 (100円あたりのタンパク質g)")
+        fig2.update_layout(yaxis={'categoryorder':'total ascending'},
+                          plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig2, use_container_width=True)
 
 # === FOOTER ===
+st.divider()
 st.markdown("""
-<div style="text-align:center; margin-top:3rem; padding:1rem; border-top:1px solid rgba(255,255,255,0.05);">
-    <p style="color:#475569; font-size:0.75rem;">© 2024 Team Data Chain | Data Science + AI Division</p>
+<div style="text-align:center; color:#888; font-size:0.8rem; padding:20px;">
+    © 2024 Team Data Chain | Data Science + AI Division | Tokyo Technical College<br>
+    Built with Streamlit & ❤️ for Healthy Students
 </div>
 """, unsafe_allow_html=True)
