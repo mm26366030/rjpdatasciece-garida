@@ -134,6 +134,8 @@ with st.sidebar:
     st.image(buf.getvalue(), use_container_width=True)
 
 # === HEADER ===
+
+
 st.markdown("TTCの健康な学生へ")
 st.caption("周辺スーパーから最適な食事を選ぼう")
 st.divider()
@@ -196,7 +198,7 @@ with tab3:
     st.info("😋 美味しい食品を教えてください！ ❤️")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("食品名")
-        f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
+        f_cat = st.selectbox("カテゴリ", ["主食", "野菜", "乳製品", "その他"])
         f_price = st.number_input("価格 (¥)", min_value=1, value=100)
         f_prot = st.number_input("タンパク (g)", min_value=0.0, value=10.0)
         submitted = st.form_submit_button("追加")
