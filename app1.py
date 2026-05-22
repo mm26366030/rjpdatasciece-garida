@@ -44,12 +44,11 @@ else:
 
 df["p/c_score"] = (pd.to_numeric(df["タンパク"], errors='coerce') / pd.to_numeric(df["値段"], errors='coerce') * 100).round(2)
 
-# === GLOBAL CSS (All Text to Dark Green) ===
+# === GLOBAL CSS ===
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
 
-/* Force all text to Dark Green */
 html, body, [class*="css"], .stMarkdown, p, span, label, li, h1, h2, h3, h4, h5, h6 { 
     font-family: 'Noto Sans JP', sans-serif !important; 
     color: #1a4d2e !important;
@@ -59,28 +58,23 @@ html, body, [class*="css"], .stMarkdown, p, span, label, li, h1, h2, h3, h4, h5,
     background: #f7f5f0; 
 }
 
-/* Metric Colors */
 [data-testid="stMetricValue"] {
     color: #1a4d2e !important;
     font-weight: 800 !important;
 }
 [data-testid="stMetricLabel"] {
     color: #1a4d2e !important;
-    font-weight: 600 !important;
 }
 
-/* Sidebar Text Color */
 [data-testid="stSidebar"] * {
     color: #1a4d2e !important;
 }
 
-/* Tab Colors */
 button[data-baseweb="tab"] * {
     color: #1a4d2e !important;
     font-weight: 700 !important;
 }
 
-/* Custom Card */
 .custom-card {
     background: white;
     padding: 20px;
@@ -90,7 +84,6 @@ button[data-baseweb="tab"] * {
     margin-bottom: 20px;
 }
 
-/* Pairing Card */
 .pairing-card {
     background: #ffffff;
     padding: 15px;
@@ -99,16 +92,18 @@ button[data-baseweb="tab"] * {
     margin-bottom: 10px;
 }
 
-/* Input boxes text color */
 input, select, textarea {
     color: #1a4d2e !important;
 }
 
-/* DataFrame (Table) Text Color */
 .stDataFrame div {
     color: #1a4d2e !important;
 }
 
+/* Success message color fix */
+.stAlert p {
+    color: #1a4d2e !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -123,7 +118,7 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# データサイエンス＋AI科　**Team Data Chain** の作品")
-st.caption("TTC Protein Optimization Dashboard v3.1 | 全テキスト視認性向上モデル")
+st.caption("TTC Protein Optimization Dashboard v3.2 | ユーザー参加型・分析強化モデル")
 st.divider()
 
 # === CALCULATOR & METRICS ===
@@ -167,6 +162,7 @@ with tab1:
 
 with tab2:
     st.markdown("### ➕ 新しい食品をリストに追加")
+    st.info("😋 Амттай гэж бодож байгаа бүтээгдэхүүнээ энд нэмээрэй, бид маш их баярлах болно! ❤️")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("食品名", placeholder="例: プロテインバー")
         f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
@@ -193,11 +189,43 @@ with tab3:
             st.markdown(f"""<div class="pairing-card"><h4>{p['title']}</h4><p>{' + '.join(p['items'])}</p><p style="font-size:0.8rem;">{p['desc']}</p><b>{p['protein']} | {p['price']}</b></div>""", unsafe_allow_html=True)
 
 with tab4:
-    st.markdown("### 📊 視覚的分析")
+    st.markdown("### 📊 視覚的分析 (Visual Analysis)")
     if not df_f.empty:
-        fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", hover_name="商品名", title="価格 vs タンパク質")
-        fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#1a4d2e"))
+        # Improved scatter chart with clearer labels and dark green theme
+        fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", 
+                         hover_name="商品名", 
+                         title="価格 vs タンパク質含有量 (円 vs グラム)",
+                         labels={"値段": "価格 (¥)", "タンパク": "タンパク質 (g)", "カテゴリ": "食品カテゴリ"})
+        
+        fig.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)", 
+            paper_bgcolor="rgba(0,0,0,0)", 
+            font=dict(color="#1a4d2e", size=14),
+            title_font=dict(size=20, family="Noto Serif JP"),
+            xaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", title_font=dict(size=16)),
+            yaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", title_font=dict(size=16))
+        )
         st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Additional bar chart for top cost performance
+        top10_pc = df_f.nlargest(10, "p/c_score")
+        fig2 = px.bar(top10_pc, x="p/c_score", y="商品名", orientation='h', 
+                      title="コスパスコア TOP 10 (100円あたりのタンパク質g)",
+                      labels={"p/c_score": "コスパスコア (g/100円)", "商品名": "食品名"},
+                      color="タンパク", color_continuous_scale="Greens")
+        
+        fig2.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)", 
+            paper_bgcolor="rgba(0,0,0,0)", 
+            font=dict(color="#1a4d2e", size=14),
+            title_font=dict(size=20, family="Noto Serif JP"),
+            yaxis={'categoryorder':'total ascending'}
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("分析するデータがありません。フィルターを調整してください。")
 
 # === FOOTER ===
 st.divider()
