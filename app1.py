@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import altair as alt
 import plotly.express as px
 
 # === PAGE CONFIG ===
@@ -11,20 +10,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# === LOAD DATA ===
+# === INITIAL DATA & SESSION STATE ===
+if 'custom_food' not in st.session_state:
+    st.session_state.custom_food = []
+
 @st.cache_data
-def load_data():
+def load_base_data():
     try:
-        # Try to load existing data
         df = pd.read_csv("smith_clean.csv")
-        df["p/c_score"] = pd.to_numeric(df["p/c_score"], errors="coerce")
-        df["タンパク"]   = pd.to_numeric(df["タンパク"],   errors="coerce")
-        df["値段"]       = pd.to_numeric(df["値段"],       errors="coerce")
-        # Ensure column names match expected logic
-        if "商品名" not in df.columns and "name" in df.columns:
-            df = df.rename(columns={"name": "商品名", "price": "値段", "prot": "タンパク", "cat": "カテゴリ"})
+        # Rename columns to Japanese for consistency
+        mapping = {"name": "商品名", "price": "値段", "prot": "タンパク", "cat": "カテゴリ", "cal": "カロリー"}
+        df = df.rename(columns=lambda x: mapping.get(x, x))
     except FileNotFoundError:
-        # Use dummy data from reference app if file not found
         rows = [
             ("ごはん(茶碗1杯)","150g",30,168,2.5,0.3,37.1,"サミット","主食"),
             ("食パン 1枚","60g",40,158,5.6,2.5,28.0,"サミット","主食"),
@@ -34,16 +31,23 @@ def load_data():
             ("納豆 1パック","50g",40,100,8.3,5.0,5.4,"サミット","タンパク質"),
             ("サバ缶(水煮)","150g",198,190,20.9,10.7,0.2,"サミット","タンパク質"),
             ("サラダチキン","115g",218,114,24.5,1.5,0.5,"FamilyMart","タンパク質"),
-            ("ゆで卵 1個","60g",78,76,6.5,5.1,0.3,"FamilyMart","タンパク質"),
             ("ブロッコリー","100g",60,33,3.5,0.4,4.3,"サミット","野菜"),
         ]
-        df = pd.DataFrame(rows, columns=["商品名","unit","値段","cal","タンパク","fat","carb","store","カテゴリ"])
-        df["p/c_score"] = (df["タンパク"] / df["値段"] * 100).round(2)
+        df = pd.DataFrame(rows, columns=["商品名","unit","値段","カロリー","タンパク","fat","carb","store","カテゴリ"])
     return df
 
-df = load_data()
+# Combine base data with user-added food
+base_df = load_base_data()
+if st.session_state.custom_food:
+    custom_df = pd.DataFrame(st.session_state.custom_food)
+    df = pd.concat([base_df, custom_df], ignore_index=True)
+else:
+    df = base_df
 
-# === GLOBAL CSS (Reference Style) ===
+# Calculate score
+df["p/c_score"] = (pd.to_numeric(df["タンパク"], errors='coerce') / pd.to_numeric(df["値段"], errors='coerce') * 100).round(2)
+
+# === GLOBAL CSS (Design Fixes) ===
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
@@ -56,12 +60,20 @@ html, body, [class*="css"] {
     background: #f7f5f0; 
 }
 
+/* Fix visibility of metrics on light background */
+[data-testid="stMetricValue"] {
+    color: #1a4d2e !important;
+    font-weight: 700 !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #444 !important;
+}
+
 h1, h2, h3 { 
     font-family: 'Noto Serif JP', serif !important; 
     color: #1a4d2e !important;
 }
 
-/* Custom Card Style */
 .custom-card {
     background: white;
     padding: 20px;
@@ -77,59 +89,38 @@ h1, h2, h3 {
     border-radius: 12px;
     border: 1px solid #e0e0e0;
     margin-bottom: 10px;
-    transition: transform 0.2s;
-}
-.pairing-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-    border-color: #1a4d2e;
 }
 
-.highlight-text {
-    color: #1a4d2e;
-    font-weight: 700;
-}
-
-/* Sidebar Styling */
-[data-testid="stSidebar"] {
-    background-color: #ffffff;
-    border-right: 1px solid #e0e0e0;
+/* Tab text color fix */
+button[data-baseweb="tab"] p {
+    color: #1a4d2e !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# === SIDEBAR (Settings) ===
+# === SIDEBAR ===
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/protein.png", width=80)
     st.markdown("## ⚙️ 設定 / Settings")
-    
-    st.markdown("### 👤 User Profile")
     weight = st.number_input("体重 (kg)", min_value=30, max_value=150, value=65)
-    activity = st.selectbox("活動レベル", 
-                            ["低 (デスクワーク)", "中 (週3回の運動)", "高 (アスリート)"],
-                            index=1)
-    
+    activity = st.selectbox("活動レベル", ["低 (デスクワーク)", "中 (週3回の運動)", "高 (アスリート)"], index=1)
     st.divider()
-    
-    st.markdown("### 🔍 Filters")
     budget = st.slider("予算 (¥)", 100, 2000, 500, step=50)
-    
-    cat_options = ["すべて"] + sorted(df["カテゴリ"].dropna().unique().tolist())
-    category = st.selectbox("カテゴリ", cat_options)
+    category = st.selectbox("カテゴリ", ["すべて"] + sorted(df["カテゴリ"].dropna().unique().tolist()))
 
 # === HEADER ===
 st.markdown("# データサイエンス＋AI科　**Team Data Chain** の作品")
-st.caption("専門学校東京テクニカルカレッジ (TTC) · プロテイン最適化ダッシュボード v2.0")
+st.caption("TTC Protein Optimization Dashboard v3.0 | ユーザーによる食品追加機能搭載")
 st.divider()
 
-# === CALCULATOR SECTION ===
-multiplier = 1.0
-if "中" in activity: multiplier = 1.5
-elif "高" in activity: multiplier = 2.0
+# === CALCULATOR & METRICS ===
+multiplier = 1.5 if "中" in activity else (2.0 if "高" in activity else 1.0)
 target_protein = weight * multiplier
 
-c1, c2 = st.columns([1, 2])
+df_f = df[df["値段"] <= budget].copy()
+if category != "すべて":
+    df_f = df_f[df_f["カテゴリ"] == category]
 
+c1, c2 = st.columns([1, 2])
 with c1:
     st.markdown(f"""
     <div class="custom-card">
@@ -140,109 +131,72 @@ with c1:
     """, unsafe_allow_html=True)
 
 with c2:
-    # Quick metrics from filtered data
-    df_f = df[df["値段"] <= budget].copy()
-    if category != "すべて":
-        df_f = df_f[df_f["カテゴリ"] == category]
-    
     m1, m2, m3 = st.columns(3)
     m1.metric("該当品目", f"{len(df_f)}品")
     m2.metric("平均タンパク", f"{df_f['タンパク'].mean():.1f}g" if not df_f.empty else "0g")
     m3.metric("最高コスパ", f"{df_f['p/c_score'].max():.1f}pt" if not df_f.empty else "0pt")
 
 # === TABS ===
-tab1, tab2, tab3 = st.tabs(["🍱 食品・ランキング", "🤝 おすすめの組み合わせ", "📊 データ分析"])
+tab1, tab2, tab3, tab4 = st.tabs(["📋 食品・ランキング", "➕ 食品を追加", "🤝 おすすめ", "📊 分析"])
 
 with tab1:
     col_a, col_b = st.columns([2, 1])
-    
     with col_a:
         st.markdown("### 📋 食品リスト")
         st.dataframe(df_f.sort_values("タンパク", ascending=False), use_container_width=True, hide_index=True)
-        
     with col_b:
         st.markdown("### 🏆 タンパク質 TOP 5")
         top5 = df_f.sort_values("タンパク", ascending=False).head(5)
         for i, row in top5.iterrows():
-            st.markdown(f"""
-            <div style="padding:10px; border-bottom:1px solid #eee;">
-                <span style="font-weight:700; color:#1a4d2e;">#{i+1} {row['商品名']}</span><br>
-                <span style="font-size:0.85rem; color:#666;">{row['タンパク']}g / ¥{int(row['値段'])}</span>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"**#{i+1} {row['商品名']}**  \n{row['タンパク']}g / ¥{int(row['値段'])}", unsafe_allow_html=True)
+            st.divider()
 
 with tab2:
-    st.markdown("### 🤝 一緒に食べるともっと美味しい！ (おすすめの組み合わせ)")
-    st.write("栄養バランスと味の相性を考えた、最強のコンビネーションをご提案します。")
-    
-    pairings = [
-        {
-            "title": "定番！サラダチキンセット",
-            "items": ["サラダチキン", "ブロッコリー", "ごはん"],
-            "desc": "高タンパクの王道。ブロッコリーのビタミンCがタンパク質の吸収を助けます。",
-            "protein": "30.5g",
-            "price": "¥328"
-        },
-        {
-            "title": "朝のエネルギーチャージ",
-            "items": ["納豆", "鶏卵", "ごはん"],
-            "desc": "日本の伝統的な朝食。アミノ酸スコア100の完璧な組み合わせです。",
-            "protein": "17.0g",
-            "price": "¥95"
-        },
-        {
-            "title": "手軽に最強バルクアップ",
-            "items": ["サバ缶(水煮)", "木綿豆腐"],
-            "desc": "良質な脂質(EPA/DHA)と植物性タンパク質を同時に摂取。コスパも最強。",
-            "protein": "27.5g",
-            "price": "¥248"
-        }
-    ]
-    
-    p_cols = st.columns(3)
-    for i, p in enumerate(pairings):
-        with p_cols[i % 3]:
-            st.markdown(f"""
-            <div class="pairing-card">
-                <h4 style="color:#1a4d2e; margin-top:0;">{p['title']}</h4>
-                <p style="font-size:0.85rem; color:#444;">{' + '.join(p['items'])}</p>
-                <hr style="margin:10px 0; border:0; border-top:1px solid #eee;">
-                <p style="font-size:0.8rem; font-style:italic; color:#666;">{p['desc']}</p>
-                <div style="display:flex; justify-content:space-between; margin-top:10px;">
-                    <span class="highlight-text">{p['protein']}</span>
-                    <span style="font-weight:700;">{p['price']}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown("### ➕ 新しい食品をリストに追加")
+    st.write("データベースにない新しい食品をここから追加できます。")
+    with st.form("add_food_form", clear_on_submit=True):
+        f_name = st.text_input("食品名", placeholder="例: プロテインバー")
+        f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
+        f_price = st.number_input("価格 (¥)", min_value=1, value=100)
+        f_prot = st.number_input("タンパク質 (g)", min_value=0.0, value=10.0, step=0.1)
+        f_cal = st.number_input("カロリー (kcal)", min_value=0, value=100)
+        
+        submitted = st.form_submit_button("リストに追加する")
+        if submitted:
+            if f_name:
+                new_item = {
+                    "商品名": f_name,
+                    "カテゴリ": f_cat,
+                    "値段": f_price,
+                    "タンパク": f_prot,
+                    "カロリー": f_cal,
+                    "store": "ユーザー追加",
+                    "unit": "-"
+                }
+                st.session_state.custom_food.append(new_item)
+                st.success(f"「{f_name}」を追加しました！リストを確認してください。")
+                st.rerun()
+            else:
+                st.error("食品名を入力してください。")
 
 with tab3:
+    st.markdown("### 🤝 おすすめの組み合わせ")
+    pairings = [
+        {"title": "定番！サラダチキンセット", "items": ["サラダチキン", "ブロッコリー", "ごはん"], "desc": "高タンパクの王道。ビタミンCが吸収を助けます。", "protein": "30.5g", "price": "¥328"},
+        {"title": "朝のエネルギーチャージ", "items": ["納豆", "鶏卵", "ごはん"], "desc": "アミノ酸スコア100の完璧な組み合わせ。", "protein": "17.0g", "price": "¥95"},
+    ]
+    p_cols = st.columns(2)
+    for i, p in enumerate(pairings):
+        with p_cols[i]:
+            st.markdown(f"""<div class="pairing-card"><h4 style="color:#1a4d2e;">{p['title']}</h4><p>{' + '.join(p['items'])}</p><p style="font-size:0.8rem; color:#666;">{p['desc']}</p><b>{p['protein']} | {p['price']}</b></div>""", unsafe_allow_html=True)
+
+with tab4:
     st.markdown("### 📊 視覚的分析")
-    c_left, c_right = st.columns(2)
-    
-    with c_left:
-        # Scatter chart: Price vs Protein
-        fig = px.scatter(df_f, x="値段", y="タンパク", 
-                         size="p/c_score", color="カテゴリ",
-                         hover_name="商品名",
-                         title="価格 vs タンパク質含有量 (サイズの大きさはコスパ)")
+    if not df_f.empty:
+        fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", hover_name="商品名", title="価格 vs タンパク質 (サイズ=コスパ)")
         fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, use_container_width=True)
-        
-    with c_right:
-        # Bar chart: Top 10 Cost Performance
-        top10_pc = df_f.nlargest(10, "p/c_score")
-        fig2 = px.bar(top10_pc, x="p/c_score", y="商品名", 
-                      orientation='h', color="タンパク",
-                      title="コスパスコア TOP 10 (100円あたりのタンパク質g)")
-        fig2.update_layout(yaxis={'categoryorder':'total ascending'},
-                          plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig2, use_container_width=True)
 
 # === FOOTER ===
 st.divider()
-st.markdown("""
-<div style="text-align:center; color:#888; font-size:0.8rem; padding:20px;">
-    © 2024 Team Data Chain | Data Science + AI Division | Tokyo Technical College<br>
-    Built with Streamlit & ❤️ for Healthy Students
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#888; font-size:0.8rem;'>© 2024 Team Data Chain | Tokyo Technical College</div>", unsafe_allow_html=True)
