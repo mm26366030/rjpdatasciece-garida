@@ -228,8 +228,8 @@ with tab4:
                       color="タンパク", color_continuous_scale="Greens")
         
         fig2.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)", 
-            paper_bgcolor="rgba(0,0,0,0)", 
+            plot_bgcolor="rgba(0, 0, 0, 1) ", 
+            paper_bgcolor="rgba(0, 0, 0, 1) ", 
             font=dict(color="#1a4d2e", size=16),
             yaxis={'categoryorder':'total ascending', 'tickfont': dict(size=14, color="#1a4d2e")},
             xaxis={'tickfont': dict(size=14, color="#1a4d2e")}
