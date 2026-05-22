@@ -176,7 +176,7 @@ with tab2:
     st.info("😋 美味しいと思う食品をここに追加してください！皆さんの協力に感謝します！ ❤️")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("食品名", placeholder="例: プロテインバー")
-        f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
+        f_cat = st.selectbox("カテゴリ", ["主食", "野菜", "乳製品", "その他"])
         f_price = st.number_input("価格 (¥)", min_value=1, value=100)
         f_prot = st.number_input("タンパク質 (g)", min_value=0.0, value=10.0, step=0.1)
         f_cal = st.number_input("カロリー (kcal)", min_value=0, value=100)
