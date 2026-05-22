@@ -239,8 +239,6 @@ with tab4:
 # === FOOTER ===
 st.divider()
 st.markdown("<div style='text-align:center; font-size:0.8rem;'>© 2024 Team Data Chain | Tokyo Technical College</div>", unsafe_allow_html=True)
-    else:
-        st.warning("分析するデータがありません。フィルターを調整してください。")
 
 # === FOOTER ===
 st.divider()
