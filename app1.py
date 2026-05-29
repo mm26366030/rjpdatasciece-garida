@@ -21,22 +21,24 @@ if 'custom_food' not in st.session_state:
 def load_base_data():
     try:
         df = pd.read_csv("smith_clean.csv")
-        mapping = {"name": "商品名", "price": "値段", "prot": "タンパク", "cat": "カテゴリ", "cal": "カロリー"}
+        mapping = {"name": "商品名", "price": "値段", "prot": "タンパク", "cat": "カテゴリ", "cal": "カロリー", "unit": "内容量"}
         df = df.rename(columns=lambda x: mapping.get(x, x))
+        # Ensure '内容量' column exists, if not, create it
+        if "内容量" not in df.columns:
+            df["内容量"] = "100g"
     except FileNotFoundError:
-        # Base data with packaging (unit) info
         rows = [
             ("ごはん(茶碗1杯)","150g",30,168,2.5,0.3,37.1,"サミット","主食"),
             ("食パン 1枚","60g",40,158,5.6,2.5,28.0,"サミット","主食"),
-            ("鶏むね肉(皮なし)","100g",80,105,23.3,1.2,0.0,"サミット","タンパク質"),
+            ("鶏むね肉(皮なし)","100g",80,105,23.3,1.2,0.0,"サмиット","タンパク質"),
             ("鶏卵 1個","60g",25,76,6.2,5.2,0.2,"サミット","タンパク質"),
-            ("木綿豆腐 半丁","150g",50,72,6.6,4.2,1.6,"サミット","タンパク質"),
-            ("納豆 1パック","50g",40,100,8.3,5.0,5.4,"サмиット","タンパク質"),
+            ("木綿豆腐 半丁","150g",50,72,6.6,4.2,1.6,"サмиット","タンパク質"),
+            ("納豆 1パック","50g",40,100,8.3,5.0,5.4,"サミット","タンパク質"),
             ("サバ缶(水煮)","150g",198,190,20.9,10.7,0.2,"サミット","タンパク質"),
             ("サラダチキン","115g",218,114,24.5,1.5,0.5,"FamilyMart","タンパク質"),
             ("ブロッコリー","100g",60,33,3.5,0.4,4.3,"サミット","野菜"),
         ]
-        df = pd.DataFrame(rows, columns=["商品名","unit","値段","カロリー","タンパク","fat","carb","store","カテゴリ"])
+        df = pd.DataFrame(rows, columns=["商品名","内容量","値段","カロリー","タンパク","fat","carb","store","カテゴリ"])
     return df
 
 base_df = load_base_data()
@@ -46,7 +48,6 @@ if st.session_state.custom_food:
 else:
     df = base_df
 
-# Calculation based on the actual package price and protein
 df["p/c_score"] = (pd.to_numeric(df["タンパク"], errors='coerce') / pd.to_numeric(df["値段"], errors='coerce') * 100).round(2)
 
 # === GLOBAL CSS ===
@@ -72,8 +73,6 @@ button[data-baseweb="tab"] * { color: #1a4d2e !important; font-weight: 700 !impo
 with st.sidebar:
     st.markdown("## ⚙️ 設定 / Settings")
     budget = st.slider("1日の予算 (¥)", 100, 2000, 1000, step=50)
-    
-    # Filter categories to show ONLY those existing in the current database
     existing_categories = sorted(df["カテゴリ"].dropna().unique().tolist())
     category = st.selectbox("カテゴリーを選択", ["すべて"] + existing_categories)
     
@@ -91,26 +90,22 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# Team Data Chain")
-st.caption("予算を選んでタンパクの良い食事を任せろ！！")
+st.caption("Protein Optimization Dashboard v4.6 | Error-Safe Edition")
 st.divider()
 
-# === BUDGET & PACKAGING LOGIC ===
+# === BUDGET LOGIC ===
 df_f = df.copy()
 if category != "すべて":
     df_f = df_f[df_f["カテゴリ"] == category]
-
-# Filter items where the package price is within budget
 df_f = df_f[df_f["値段"] <= budget]
 
-def find_best_plan_with_packages(items_df, target_budget):
+def find_best_plan(items_df, target_budget):
     pool = items_df.to_dict("records")
     best_combo = []
     max_prot = 0
-    # The algorithm now considers the WHOLE package price and protein
-    for n in range(1, 5): # Try combinations of 1 to 4 items
+    for n in range(1, 5):
         for combo in combinations(pool, n):
             total_price = sum(item["値段"] for item in combo)
-            # Find combinations that are close to the budget (within 100 yen)
             if (target_budget - 100) <= total_price <= target_budget:
                 total_prot = sum(item["タンパク"] for item in combo)
                 if total_prot > max_prot:
@@ -118,14 +113,13 @@ def find_best_plan_with_packages(items_df, target_budget):
                     best_combo = combo
     return best_combo, max_prot
 
-best_plan, plan_prot = find_best_plan_with_packages(df_f, budget)
+best_plan, plan_prot = find_best_plan(df_f, budget)
 
 # === TABS ===
 tab1, tab2, tab3, tab4 = st.tabs(["💰 予算プラン", "📋 食品リスト", "➕ 食品を追加", "📊 分析"])
 
 with tab1:
     st.markdown(f"### 🎯 {budget}円で購入可能な最適パッケージ組合せ")
-    st.info("※このプランは100g単価ではなく、実際の1パッケージ（1袋/1パック）の価格で計算されています。")
     if best_plan:
         total_p = sum(item["値段"] for item in best_plan)
         st.markdown(f"""
@@ -135,9 +129,10 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
         for item in best_plan:
+            unit_val = item.get("内容量", "100g") # Use .get() to avoid KeyError
             st.markdown(f"""
             <div class="pairing-card">
-                <p style="font-weight:700; font-size:1.1rem; margin-bottom:5px;">{item['商品名']} ({item['unit']})</p>
+                <p style="font-weight:700; font-size:1.1rem; margin-bottom:5px;">{item['商品名']} ({unit_val})</p>
                 <span>タンパク: {item['タンパク']}g | 価格: ¥{int(item['値段'])}</span>
             </div>
             """, unsafe_allow_html=True)
@@ -145,50 +140,37 @@ with tab1:
         st.warning(f"¥{budget} の予算内で最適なパッケージの組み合わせを計算中...")
 
 with tab2:
-    st.markdown("### 📋 利用可能な食品リスト (パッケージ単位)")
-    st.dataframe(df_f[["商品名", "unit", "値段", "タンパク", "カテゴリ"]].sort_values("タンパク", ascending=False), 
-                 use_container_width=True, hide_index=True)
+    st.markdown("### 📋 食品リスト")
+    st.dataframe(df_f, use_container_width=True, hide_index=True)
 
 with tab3:
-    st.markdown("### ➕ 新しい食品を追加")
-    st.info("😋 スーパーで見つけた商品の情報をパッケージ単位で入力してください！")
+    st.markdown("### ➕ 食品を追加")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("商品名")
         f_unit = st.text_input("内容量 (例: 150g, 1パック)", value="100g")
         f_cat = st.selectbox("カテゴリ", existing_categories + ["その他"])
-        f_price = st.number_input("パッケージ価格 (¥)", min_value=1, value=100)
-        f_prot = st.number_input("パッケージあたりのタンパク質 (g)", min_value=0.0, value=10.0)
+        f_price = st.number_input("価格 (¥)", min_value=1, value=100)
+        f_prot = st.number_input("タンパク質 (g)", min_value=0.0, value=10.0)
         submitted = st.form_submit_button("リストに追加")
         if submitted and f_name:
-            new_item = {"商品名": f_name, "unit": f_unit, "カテゴリ": f_cat, "値段": f_price, "タンパク": f_prot, "カロリー": 0, "store": "User"}
+            new_item = {"商品名": f_name, "内容量": f_unit, "カテゴリ": f_cat, "値段": f_price, "タンパク": f_prot, "カロリー": 0, "store": "User"}
             st.session_state.custom_food.append(new_item)
-            st.success(f"「{f_name}」を追加しました！")
             st.rerun()
 
 with tab4:
     st.markdown("### 📊 分析 (Visual Analysis)")
     if not df_f.empty:
         fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", 
-                         hover_name="商品名", title="パッケージ価格 vs タンパク質")
+                         hover_name="商品名", title="価格 vs タンパク質")
         fig.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#1a4d2e", size=16),
-            xaxis=dict(title="価格 (¥)", gridcolor="#d0d0d0", tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")),
-            yaxis=dict(title="タンパク質 (g)", gridcolor="#d0d0d0", tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")),
-            legend=dict(font=dict(size=14, color="#1a4d2e"))
+            xaxis=dict(title="価格 (¥)", gridcolor="#d0d0d0", tickfont=dict(color="#1a4d2e", size=14)),
+            yaxis=dict(title="タンパク質 (g)", gridcolor="#d0d0d0", tickfont=dict(color="#1a4d2e", size=14))
         )
         st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("---")
-        top10 = df_f.nlargest(10, "p/c_score")
-        fig2 = px.bar(top10, x="p/c_score", y="商品名", orientation='h', color="タンパク", title="コスパ TOP 10 (パッケージ単位)")
-        fig2.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#1a4d2e", size=16),
-            yaxis=dict(categoryorder='total ascending', tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")),
-            xaxis=dict(title="コスパスコア (g/100円)", tickfont=dict(color="#1a4d2e", size=14, family="Arial Black"))
-        )
-        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("データがありません。")
 
 st.divider()
 st.markdown("<div style='text-align:center; font-size:0.8rem;'>© 2024 Team Data Chain</div>", unsafe_allow_html=True)
