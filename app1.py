@@ -23,16 +23,15 @@ def load_base_data():
         df = pd.read_csv("smith_clean.csv")
         mapping = {"name": "商品名", "price": "値段", "prot": "タンパク", "cat": "カテゴリ", "cal": "カロリー", "unit": "内容量"}
         df = df.rename(columns=lambda x: mapping.get(x, x))
-        # Ensure '内容量' column exists, if not, create it
         if "内容量" not in df.columns:
             df["内容量"] = "100g"
     except FileNotFoundError:
         rows = [
             ("ごはん(茶碗1杯)","150g",30,168,2.5,0.3,37.1,"サミット","主食"),
             ("食パン 1枚","60g",40,158,5.6,2.5,28.0,"サミット","主食"),
-            ("鶏むね肉(皮なし)","100g",80,105,23.3,1.2,0.0,"サмиット","タンパク質"),
+            ("鶏むね肉(皮なし)","100g",80,105,23.3,1.2,0.0,"サミット","タンパク質"),
             ("鶏卵 1個","60g",25,76,6.2,5.2,0.2,"サミット","タンパク質"),
-            ("木綿豆腐 半丁","150g",50,72,6.6,4.2,1.6,"サмиット","タンパク質"),
+            ("木綿豆腐 半丁","150g",50,72,6.6,4.2,1.6,"サミット","タンパク質"),
             ("納豆 1パック","50g",40,100,8.3,5.0,5.4,"サミット","タンパク質"),
             ("サバ缶(水煮)","150g",198,190,20.9,10.7,0.2,"サミット","タンパク質"),
             ("サラダチキン","115g",218,114,24.5,1.5,0.5,"FamilyMart","タンパク質"),
@@ -66,6 +65,13 @@ button[kind="headerNoPadding"]::after { content: "☰"; font-size: 26px; color: 
 .custom-card { background: white; padding: 20px; border-radius: 15px; border: 3px solid #1a4d2e; margin-bottom: 20px; }
 .pairing-card { background: white; padding: 12px; border-radius: 10px; border: 2px solid #1a4d2e; margin-bottom: 10px; }
 button[data-baseweb="tab"] * { color: #1a4d2e !important; font-weight: 700 !important; }
+
+/* Analysis chart axis text color fix - EXTRA BOLD */
+.js-plotly-plot .plotly .xtick text, .js-plotly-plot .plotly .ytick text, .js-plotly-plot .plotly .g-xtitle text, .js-plotly-plot .plotly .g-ytitle text {
+    fill: #1a4d2e !important;
+    font-weight: 900 !important;
+    font-size: 16px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -75,7 +81,6 @@ with st.sidebar:
     budget = st.slider("1日の予算 (¥)", 100, 2000, 1000, step=50)
     existing_categories = sorted(df["カテゴリ"].dropna().unique().tolist())
     category = st.selectbox("カテゴリーを選択", ["すべて"] + existing_categories)
-    
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📱 Share this App")
@@ -90,7 +95,7 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# Team Data Chain")
-st.caption("Protein Optimization Dashboard v4.6 | Error-Safe Edition")
+st.caption("Protein Optimization Dashboard v4.7 | Final High-Contrast Edition")
 st.divider()
 
 # === BUDGET LOGIC ===
@@ -116,7 +121,7 @@ def find_best_plan(items_df, target_budget):
 best_plan, plan_prot = find_best_plan(df_f, budget)
 
 # === TABS ===
-tab1, tab2, tab3, tab4 = st.tabs(["💰 予算プラン", "📋 食品リスト", "➕ 食品を追加", "📊 分析"])
+tab1, tab2, tab3, tab4 = st.tabs(["💰 予算プラン", "📋 食品リスト", "➕ 追加", "📊 分析"])
 
 with tab1:
     st.markdown(f"### 🎯 {budget}円で購入可能な最適パッケージ組合せ")
@@ -129,7 +134,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
         for item in best_plan:
-            unit_val = item.get("内容量", "100g") # Use .get() to avoid KeyError
+            unit_val = item.get("内容量", "100g")
             st.markdown(f"""
             <div class="pairing-card">
                 <p style="font-weight:700; font-size:1.1rem; margin-bottom:5px;">{item['商品名']} ({unit_val})</p>
@@ -137,7 +142,7 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
     else:
-        st.warning(f"¥{budget} の予算内で最適なパッケージの組み合わせを計算中...")
+        st.warning(f"¥{budget} の予算内で最適な組み合わせを計算中...")
 
 with tab2:
     st.markdown("### 📋 食品リスト")
@@ -160,13 +165,24 @@ with tab3:
 with tab4:
     st.markdown("### 📊 分析 (Visual Analysis)")
     if not df_f.empty:
+        # HIGH CONTRAST SETTINGS IN PLOTLY CALL
         fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", 
                          hover_name="商品名", title="価格 vs タンパク質")
+        
         fig.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#1a4d2e", size=16),
-            xaxis=dict(title="価格 (¥)", gridcolor="#d0d0d0", tickfont=dict(color="#1a4d2e", size=14)),
-            yaxis=dict(title="タンパク質 (g)", gridcolor="#d0d0d0", tickfont=dict(color="#1a4d2e", size=14))
+            font=dict(color="#1a4d2e", size=18, family="Arial Black"), # Forced bold font
+            xaxis=dict(
+                title=dict(text="価格 (¥)", font=dict(size=20, color="#1a4d2e", family="Arial Black")),
+                gridcolor="#d0d0d0", zerolinecolor="#1a4d2e",
+                tickfont=dict(color="#1a4d2e", size=16, family="Arial Black")
+            ),
+            yaxis=dict(
+                title=dict(text="タンパク質 (g)", font=dict(size=20, color="#1a4d2e", family="Arial Black")),
+                gridcolor="#d0d0d0", zerolinecolor="#1a4d2e",
+                tickfont=dict(color="#1a4d2e", size=16, family="Arial Black")
+            ),
+            legend=dict(font=dict(size=14, color="#1a4d2e"), bgcolor="rgba(255,255,255,0.7)")
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
