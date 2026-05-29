@@ -52,7 +52,6 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
 
-/* Main Theme */
 html, body, [class*="css"], .stMarkdown, p, span, label, li, h1, h2, h3, h4, h5, h6 { 
     font-family: 'Noto Sans JP', sans-serif !important; 
     color: #1a4d2e !important;
@@ -60,14 +59,13 @@ html, body, [class*="css"], .stMarkdown, p, span, label, li, h1, h2, h3, h4, h5,
 
 .stApp { background: #f7f5f0; }
 
-/* FIX: Hide the annoying "keyboard_double_arrow" text and the original icon */
+/* FIX: Hide the annoying text and original icons */
 [data-testid="stSidebarNav"] + div, 
 button[kind="headerNoPadding"] span,
 button[kind="headerNoPadding"] svg {
     display: none !important;
 }
 
-/* Custom Hamburger Icon */
 button[kind="headerNoPadding"]::after {
     content: "☰";
     font-size: 26px;
@@ -76,19 +74,14 @@ button[kind="headerNoPadding"]::after {
     visibility: visible;
 }
 
-/* Sidebar Styling */
 [data-testid="stSidebar"] {
     background-color: #f7f5f0 !important;
     border-right: 2px solid #1a4d2e;
 }
-[data-testid="stSidebar"] * {
-    color: #1a4d2e !important;
-}
+[data-testid="stSidebar"] * { color: #1a4d2e !important; }
 
-/* Metric styling */
 [data-testid="stMetricValue"] { color: #1a4d2e !important; font-weight: 800 !important; }
 
-/* Card Styling */
 .custom-card {
     background: white;
     padding: 20px;
@@ -104,17 +97,9 @@ button[kind="headerNoPadding"]::after {
     margin-bottom: 10px;
 }
 
-/* Tab styling */
 button[data-baseweb="tab"] * {
     color: #1a4d2e !important;
     font-weight: 700 !important;
-}
-
-/* Analysis chart text fix */
-.js-plotly-plot .plotly .xtick text, .js-plotly-plot .plotly .ytick text {
-    fill: #1a4d2e !important;
-    font-weight: bold !important;
-    font-size: 14px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -125,7 +110,7 @@ with st.sidebar:
     budget = st.slider("1日の予算 (¥)", 100, 2000, 1000, step=50)
     category = st.selectbox("カテゴリ", ["すべて"] + sorted(df["カテゴリ"].dropna().unique().tolist()))
     
-    st.markdown("<br><br>", unsafe_allow_html=True) # Space before QR
+    st.markdown("<br><br>", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📱 Share this App")
     app_url = "https://rjpdatasciece-garida-xp7g4qgsnimqdmeyqrepcu.streamlit.app/"
@@ -140,7 +125,7 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# Team Data Chain")
-st.caption("Protein Optimization Dashboard v4.3")
+st.caption("予算を選んで任せろ！！")
 st.divider()
 
 # === BUDGET LOGIC ===
@@ -178,7 +163,6 @@ with tab1:
             <p style="margin:5px 0; font-weight:700; font-size:1.2rem;">合計金額: ¥{total_p}</p>
         </div>
         """, unsafe_allow_html=True)
-        
         for item in best_plan:
             st.markdown(f"""
             <div class="pairing-card">
@@ -199,7 +183,7 @@ with tab3:
     st.info("😋 美味しい食品を教えてください！ ❤️")
     with st.form("add_food_form", clear_on_submit=True):
         f_name = st.text_input("食品名")
-        f_cat = st.selectbox("カテゴリ", ["タンパク質", "主食", "野菜", "乳製品", "その他"])
+        f_cat = st.selectbox("カテゴリ", ["主食", "野菜", "乳製品", "その他"])
         f_price = st.number_input("価格 (¥)", min_value=1, value=100)
         f_prot = st.number_input("タンパク (g)", min_value=0.0, value=10.0)
         submitted = st.form_submit_button("リストに追加")
@@ -212,25 +196,47 @@ with tab3:
 with tab4:
     st.markdown("### 📊 分析 (Visual Analysis)")
     if not df_f.empty:
+        # HIGH CONTRAST CHART SETTINGS
         fig = px.scatter(df_f, x="値段", y="タンパク", size="p/c_score", color="カテゴリ", 
                          hover_name="商品名", title="価格 vs タンパク質")
+        
         fig.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#1a4d2e", size=14),
-            xaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", tickfont=dict(color="#1a4d2e", size=12)),
-            yaxis=dict(gridcolor="#e0e0e0", zerolinecolor="#1a4d2e", tickfont=dict(color="#1a4d2e", size=12))
+            font=dict(color="#1a4d2e", size=16),
+            xaxis=dict(
+                title=dict(text="価格 (¥)", font=dict(size=18, color="#1a4d2e")),
+                gridcolor="#d0d0d0", zerolinecolor="#1a4d2e",
+                tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")
+            ),
+            yaxis=dict(
+                title=dict(text="タンパク質 (g)", font=dict(size=18, color="#1a4d2e")),
+                gridcolor="#d0d0d0", zerolinecolor="#1a4d2e",
+                tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")
+            ),
+            legend=dict(font=dict(size=14, color="#1a4d2e"), bgcolor="rgba(255,255,255,0.5)")
         )
         st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("---")
         
         top10 = df_f.nlargest(10, "p/c_score")
         fig2 = px.bar(top10, x="p/c_score", y="商品名", orientation='h', color="タンパク", title="コスパ TOP 10")
         fig2.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#1a4d2e", size=14),
-            yaxis={'categoryorder':'total ascending', 'tickfont': dict(color="#1a4d2e", size=12)},
-            xaxis={'tickfont': dict(color="#1a4d2e", size=12)}
+            font=dict(color="#1a4d2e", size=16),
+            yaxis=dict(
+                title=dict(text="食品名", font=dict(size=18, color="#1a4d2e")),
+                categoryorder='total ascending',
+                tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")
+            ),
+            xaxis=dict(
+                title=dict(text="コスパスコア (g/100円)", font=dict(size=18, color="#1a4d2e")),
+                tickfont=dict(color="#1a4d2e", size=14, family="Arial Black")
+            )
         )
         st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("データがありません。")
 
 st.divider()
 st.markdown("<div style='text-align:center; font-size:0.8rem;'>© 2024 Team Data Chain</div>", unsafe_allow_html=True)
