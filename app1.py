@@ -95,7 +95,7 @@ with st.sidebar:
 
 # === HEADER ===
 st.markdown("# Team Data Chain")
-st.caption("Protein Optimization Dashboard v4.7 | Final High-Contrast Edition")
+st.caption("予算を選んでタンパクの良い食事を任せろ！！")
 st.divider()
 
 # === BUDGET LOGIC ===
